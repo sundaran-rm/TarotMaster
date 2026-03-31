@@ -1,0 +1,17 @@
+{
+  "name": "Super Tarot Reader",
+  "short_name": "Tarot",
+  "description": "Offline-capable 3D Tarot Reading App",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f0f1a",
+  "theme_color": "#0f0f1a",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

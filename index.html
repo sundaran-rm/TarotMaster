@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Super Tarot Reading</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f0f1a">
+
+    <style>
+        /* Google Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Inter:wght@400;600&display=swap');
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at top center, #1f1f3a, #0b0b13);
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 2.5rem;
+            margin: 20px 0;
+            color: #d1baff;
+            text-shadow: 0 0 10px rgba(108, 76, 255, 0.5);
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* --- PRELOAD SCREEN --- */
+        #loading {
+            justify-content: center;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            max-width: 400px;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 20px;
+            border: 1px solid rgba(108, 76, 255, 0.2);
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        #progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #6c4cff, #a58cff);
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px #6c4cff;
+        }
+        
+        #progress-text {
+            font-weight: 600;
+            color: #a58cff;
+        }
+
+        /* --- MAIN APP UI --- */
+        button {
+            padding: 14px 32px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, #6c4cff, #4a2dff);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: white;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(108, 76, 255, 0.4);
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(108, 76, 255, 0.6);
+            background: linear-gradient(135deg, #7c5eff, #5a3dff);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        button:disabled {
+            background: #2a2a3a;
+            color: #666;
+            box-shadow: none;
+            cursor: not-allowed;
+            border-color: transparent;
+        }
+
+        /* DECK AREA */
+        .deck-area {
+            position: relative;
+            width: 120px;
+            height: 180px;
+            margin-bottom: 40px;
+            perspective: 800px;
+        }
+
+        .deck-card {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(45deg, #1f1f3a, #1f1f3a 10px, #2a2a4a 10px, #2a2a4a 20px);
+            border: 2px solid #5a3cf0;
+            border-radius: 10px;
+            box-shadow: -2px 2px 8px rgba(0,0,0,0.6);
+            transition: transform 0.3s;
+        }
+
+        @keyframes shuffle-left {
+            0%, 100% { transform: translateX(0) rotate(0); }
+            50% { transform: translateX(-60px) rotate(-15deg); z-index: 10; }
+        }
+        
+        @keyframes shuffle-right {
+            0%, 100% { transform: translateX(0) rotate(0); }
+            50% { transform: translateX(60px) rotate(15deg); z-index: -1; }
+        }
+
+        @keyframes shuffle-center {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-30px); z-index: 5; }
+        }
+
+        .deck.shuffling .deck-card:nth-child(1) { animation: shuffle-left 0.4s infinite; }
+        .deck.shuffling .deck-card:nth-child(2) { animation: shuffle-right 0.5s infinite; }
+        .deck.shuffling .deck-card:nth-child(3) { animation: shuffle-center 0.45s infinite; }
+        .deck.shuffling .deck-card:nth-child(4) { animation: shuffle-left 0.35s infinite alternate-reverse; }
+        .deck.shuffling .deck-card:nth-child(5) { animation: shuffle-right 0.55s infinite alternate-reverse; }
+
+        /* CARDS GRID */
+        .cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            max-width: 1000px;
+            margin: auto;
+            justify-content: center;
+            perspective: 1200px;
+            padding-bottom: 60px;
+        }
+
+        .card-wrapper {
+            width: 160px;
+            height: 270px;
+            perspective: 1000px;
+            
+            /* Initial un-drawn state */
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-150px) scale(0.6) rotateX(45deg);
+            transition: all 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .card-wrapper.drawn {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0) scale(1) rotateX(0deg);
+        }
+
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transition: transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transform-style: preserve-3d;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+        }
+
+        /* Adding hover effect for interactivity */
+        .card-inner:hover {
+            box-shadow: 0 12px 30px rgba(108, 76, 255, 0.4);
+        }
+
+        .card-inner.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        /* Face DOWN (Appearing on screen initially) */
+        .card-front {
+            background: repeating-linear-gradient(45deg, #1f1f3a, #1f1f3a 10px, #2a2a4a 10px, #2a2a4a 20px);
+            border: 2px solid #6c4cff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .card-front::after {
+            content: "🔮";
+            font-size: 3rem;
+            opacity: 0.3;
+        }
+
+        /* Face UP (The actual artwork) */
+        .card-back {
+            background: #151525;
+            transform: rotateY(180deg);
+            display: flex;
+            flex-direction: column;
+            border: 2px solid #8e7bff;
+            padding: 4px;
+        }
+
+        .card-back img {
+            width: 100%;
+            height: calc(100% - 32px);
+            object-fit: cover;
+            border-radius: 8px 8px 0 0;
+            background: #0b0b13; /* fallback for transparency */
+        }
+
+        .card-back img.reversed {
+            transform: rotate(180deg);
+        }
+
+        .card-back h3 {
+            margin: 0;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-family: 'Cinzel', serif;
+            letter-spacing: 0.5px;
+            color: #eeddff;
+            text-shadow: 0 0 5px rgba(108, 76, 255, 0.8);
+            text-align: center;
+            line-height: 1.1;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .card-wrapper {
+                width: 130px;
+                height: 220px;
+            }
+            .card-back h3 {
+                font-size: 11px;
+            }
+        }
+        
+        .card-item-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .meaning-text {
+            margin-top: 15px;
+            font-size: 13px;
+            color: #d1baff;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.5s ease;
+            text-align: center;
+            max-width: 160px;
+            font-family: 'Inter', sans-serif;
+            text-shadow: 0 0 5px rgba(108, 76, 255, 0.4);
+            pointer-events: none;
+            line-height: 1.4;
+        }
+
+        .meaning-text.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* --- SPREAD UI --- */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        select {
+            padding: 12px 20px;
+            font-size: 1.1rem;
+            background: rgba(31, 31, 58, 0.8);
+            border: 1px solid rgba(108, 76, 255, 0.6);
+            border-radius: 8px;
+            color: #d1baff;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            transition: all 0.2s;
+        }
+
+        select:focus {
+            border-color: #a58cff;
+            box-shadow: 0 4px 15px rgba(108, 76, 255, 0.4);
+        }
+
+        .spread-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #ffda75; /* A mystical gold */
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.6s ease;
+            text-shadow: 0 0 8px rgba(255, 218, 117, 0.4);
+            font-family: 'Cinzel', serif;
+        }
+
+        .spread-label.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* --- MODAL UI --- */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(15, 15, 26, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .modal.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background: rgba(31, 31, 58, 0.95);
+            border: 2px solid #6c4cff;
+            border-radius: 15px;
+            box-shadow: 0 0 40px rgba(108, 76, 255, 0.4);
+            max-width: 900px;
+            width: 90%;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: row;
+            position: relative;
+            transform: scale(0.9);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .modal.show .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-body {
+            padding: 40px;
+            flex: 1;
+            overflow-y: auto;
+            color: #eeddff;
+            text-align: left;
+        }
+
+        .modal-image {
+            width: 45%;
+            background: #0b0b13;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            border-radius: 13px 0 0 13px;
+        }
+
+        .modal-image img {
+            max-width: 100%;
+            max-height: 80vh;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            transition: transform 0.4s;
+        }
+        
+        .modal-image img.reversed {
+            transform: rotate(180deg);
+        }
+
+        .modal-title {
+            font-family: 'Cinzel', serif;
+            font-size: 2.5rem;
+            color: #d1baff;
+            margin: 0 0 10px 0;
+            text-shadow: 0 0 10px rgba(108, 76, 255, 0.5);
+        }
+
+        .modal-subtitle {
+            font-size: 1.1rem;
+            color: #ffda75; /* Goldish */
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+
+        .modal-desc {
+            font-size: 1.1rem;
+            line-height: 1.7;
+            color: #cfc5dd;
+        }
+
+        .modal-desc p {
+            margin-bottom: 15px;
+        }
+
+        .modal-desc strong {
+            color: #ffda75;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 2.5rem;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: color 0.2s;
+            line-height: 0.8;
+            z-index: 10;
+        }
+
+        .modal-close:hover {
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .modal-content {
+                flex-direction: column;
+                max-height: 95vh;
+            }
+            .modal-image {
+                width: 100%;
+                height: 40vh;
+                padding: 10px;
+                border-radius: 13px 13px 0 0;
+            }
+            .modal-body {
+                padding: 25px;
+            }
+            .modal-title { font-size: 1.8rem; }
+            .modal-image img { max-height: 100%; }
+        }
+
+        /* --- JOURNAL UI --- */
+        #journal-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            width: 100%;
+            height: 100%;
+            color: #d1baff;
+            overflow-y: auto;
+            position: absolute;
+            top: 0; left: 0;
+            background: rgba(15, 15, 26, 0.95);
+            backdrop-filter: blur(15px);
+            z-index: 500;
+        }
+        #journal-screen.active {
+            display: flex;
+        }
+
+        .journal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 800px;
+            margin-bottom: 30px;
+            margin-top: 20px;
+        }
+
+        .journal-list {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding-bottom: 50px;
+        }
+
+        .journal-entry {
+            background: rgba(31, 31, 58, 0.8);
+            border: 1px solid rgba(108, 76, 255, 0.4);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .journal-entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid rgba(108, 76, 255, 0.4);
+            padding-bottom: 10px;
+        }
+
+        .journal-date { font-weight: bold; color: #ffda75; }
+        .journal-spread { font-size: 0.9em; color: #cfc5dd; text-transform: uppercase; letter-spacing: 1px;}
+
+        .journal-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .journal-card-row {
+            display: flex;
+            align-items: center;
+            font-size: 15px;
+        }
+        .journal-card-pos { color: #8a6cf5; width: 150px; font-weight: bold; }
+        .journal-card-name { color: #eeddff; }
+        
+        .journal-notes {
+            margin-top: 15px;
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 14.5px;
+            font-style: italic;
+            line-height: 1.5;
+            color: #d1baff;
+            border-left: 3px solid #6c4cff;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid rgba(108, 76, 255, 0.8);
+            color: #d1baff;
+            padding: 10px 20px;
+            font-size: 0.95rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+            margin-top: 10px;
+        }
+        .btn-secondary:hover {
+            background: rgba(108, 76, 255, 0.2);
+            border-color: #a58cff;
+        }
+
+        .flex-row {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .del-btn {
+            background: none; border: none; font-size: 20px; color: rgba(255,255,255,0.4); cursor: pointer; transition: color 0.2s;
+        }
+        .del-btn:hover { color: #ff6b6b; }
+
+        /* --- ANALYTICS DASHBOARD --- */
+        .analytics-dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px;
+            width: 100%;
+            max-width: 800px;
+            margin-bottom: 30px;
+        }
+
+        .metric-box {
+            background: rgba(31, 31, 58, 0.4);
+            border: 1px solid rgba(108, 76, 255, 0.3);
+            border-radius: 12px;
+            padding: 20px 10px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .metric-val {
+            font-size: 1.6rem;
+            font-weight: bold;
+            color: #d1baff;
+            font-family: 'Cinzel', serif;
+            text-shadow: 0 0 10px rgba(108, 76, 255, 0.6);
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            font-size: 0.8rem;
+            color: #cfc5dd;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* --- EXPLORER UI --- */
+        #explorer-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            width: 100%;
+            height: 100%;
+            color: #d1baff;
+            overflow-y: auto;
+            position: absolute;
+            top: 0; left: 0;
+            background: rgba(15, 15, 26, 0.95);
+            backdrop-filter: blur(15px);
+            z-index: 500;
+        }
+
+        #explorer-screen.active {
+            display: flex;
+        }
+
+        .explorer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 1000px;
+            margin-bottom: 20px;
+            margin-top: 20px;
+        }
+
+        .explorer-search {
+            width: 100%;
+            max-width: 1000px;
+            margin-bottom: 30px;
+        }
+
+        .explorer-search input {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            background: rgba(31, 31, 58, 0.8);
+            border: 1px solid rgba(108, 76, 255, 0.6);
+            border-radius: 8px;
+            color: #d1baff;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+            box-sizing: border-box;
+        }
+
+        .explorer-search input:focus {
+            border-color: #a58cff;
+            box-shadow: 0 4px 15px rgba(108, 76, 255, 0.4);
+        }
+
+        .explorer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px;
+            padding-bottom: 50px;
+        }
+
+        .explorer-card {
+            background: #0b0b13;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(108, 76, 255, 0.2);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            aspect-ratio: 2/3.5;
+        }
+
+        .explorer-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(108, 76, 255, 0.3);
+            border-color: #a58cff;
+        }
+
+        .explorer-card img {
+            width: 100%;
+            height: calc(100% - 35px);
+            object-fit: cover;
+        }
+
+        .explorer-card h4 {
+            margin: 0;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-family: 'Cinzel', serif;
+            color: #eeddff;
+            text-align: center;
+            padding: 0 5px;
+            line-height: 1.1;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- PRELOAD SCREEN -->
+    <div id="loading" class="screen active">
+        <h1>🔮 Super Tarot</h1>
+        <p>Attuning to the deck...</p>
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.7;"><span id="progress-text">0</span> / 78 Cards Prepared</p>
+    </div>
+
+    <!-- MAIN APP SCREEN -->
+    <div id="main-app" class="screen">
+        <h1>🔮 Tarot Reading</h1>
+        
+        <div class="deck-area">
+            <div class="deck" id="deck">
+                <!-- Stack visually built by JS -->
+            </div>
+        </div>
+
+        <div class="controls">
+            <select id="spread-selector" onchange="onSpreadChange()">
+                <option value="ppf">Past, Present, Future (3 Cards)</option>
+                <option value="daily">Daily Reflection (1 Card)</option>
+                <option value="simple">Simple Draw (5 Cards)</option>
+            </select>
+            <div class="flex-row">
+                <button id="draw-btn" onclick="performDraw()">Draw 3 Cards</button>
+                <button id="save-btn" class="btn-secondary" style="display:none; margin-top:0;" onclick="saveReading()">💾 Save Reading</button>
+            </div>
+            <div class="flex-row" style="margin-top: -5px;">
+                <button class="btn-secondary" onclick="viewJournal()">📖 View Journal</button>
+                <button class="btn-secondary" onclick="viewExplorer()">📚 Explore Deck</button>
+            </div>
+        </div>
+
+        <div class="cards" id="cards-container"></div>
+    </div>
+
+    <script>
+        // --- SERVICE WORKER REGISTRATION ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker Registered!', reg.scope))
+                    .catch(err => console.error('Service Worker Registration Failed!', err));
+            });
+        }
+
+        const TAROT_DATA = [
+            /* MAJOR ARCANA */
+            { name: "The Fool", url: "https://upload.wikimedia.org/wikipedia/commons/9/90/RWS_Tarot_00_Fool.jpg" },
+            { name: "The Magician", url: "https://upload.wikimedia.org/wikipedia/commons/d/de/RWS_Tarot_01_Magician.jpg" },
+            { name: "The High Priestess", url: "https://upload.wikimedia.org/wikipedia/commons/8/88/RWS_Tarot_02_High_Priestess.jpg" },
+            { name: "The Empress", url: "https://upload.wikimedia.org/wikipedia/commons/d/d2/RWS_Tarot_03_Empress.jpg" },
+            { name: "The Emperor", url: "https://upload.wikimedia.org/wikipedia/commons/c/c3/RWS_Tarot_04_Emperor.jpg" },
+            { name: "The Hierophant", url: "https://upload.wikimedia.org/wikipedia/commons/8/8d/RWS_Tarot_05_Hierophant.jpg" },
+            { name: "The Lovers", url: "https://upload.wikimedia.org/wikipedia/commons/d/db/RWS_Tarot_06_Lovers.jpg" },
+            { name: "The Chariot", url: "https://upload.wikimedia.org/wikipedia/commons/9/9b/RWS_Tarot_07_Chariot.jpg" },
+            { name: "Strength", url: "https://upload.wikimedia.org/wikipedia/commons/f/f5/RWS_Tarot_08_Strength.jpg" },
+            { name: "The Hermit", url: "https://upload.wikimedia.org/wikipedia/commons/4/4d/RWS_Tarot_09_Hermit.jpg" },
+            { name: "Wheel of Fortune", url: "https://upload.wikimedia.org/wikipedia/commons/3/3c/RWS_Tarot_10_Wheel_of_Fortune.jpg" },
+            { name: "Justice", url: "https://upload.wikimedia.org/wikipedia/commons/e/e0/RWS_Tarot_11_Justice.jpg" },
+            { name: "The Hanged Man", url: "https://upload.wikimedia.org/wikipedia/commons/2/2b/RWS_Tarot_12_Hanged_Man.jpg" },
+            { name: "Death", url: "https://upload.wikimedia.org/wikipedia/commons/d/d7/RWS_Tarot_13_Death.jpg" },
+            { name: "Temperance", url: "https://upload.wikimedia.org/wikipedia/commons/f/f8/RWS_Tarot_14_Temperance.jpg" },
+            { name: "The Devil", url: "https://upload.wikimedia.org/wikipedia/commons/5/55/RWS_Tarot_15_Devil.jpg" },
+            { name: "The Tower", url: "https://upload.wikimedia.org/wikipedia/commons/5/53/RWS_Tarot_16_Tower.jpg" },
+            { name: "The Star", url: "https://upload.wikimedia.org/wikipedia/commons/d/db/RWS_Tarot_17_Star.jpg" },
+            { name: "The Moon", url: "https://upload.wikimedia.org/wikipedia/commons/7/7f/RWS_Tarot_18_Moon.jpg" },
+            { name: "The Sun", url: "https://upload.wikimedia.org/wikipedia/commons/1/17/RWS_Tarot_19_Sun.jpg" },
+            { name: "Judgement", url: "https://upload.wikimedia.org/wikipedia/commons/d/dd/RWS_Tarot_20_Judgement.jpg" },
+            { name: "The World", url: "https://upload.wikimedia.org/wikipedia/commons/f/ff/RWS_Tarot_21_World.jpg" },
+            /* WANDS */
+            { name: "Ace of Wands", url: "https://upload.wikimedia.org/wikipedia/commons/1/11/Wands01.jpg" },
+            { name: "Two of Wands", url: "https://upload.wikimedia.org/wikipedia/commons/0/0f/Wands02.jpg" },
+            { name: "Three of Wands", url: "https://upload.wikimedia.org/wikipedia/commons/f/ff/Wands03.jpg" },
+            { name: "Four of Wands", url: "https://upload.wikimedia.org/wikipedia/commons/a/a4/Wands04.jpg" },
+            { name: "Five of Wands", url: "https://upload.wikimedia.org/wikipedia/commons/9/9d/Wands05.jpg" },
+            { name: "Six of Wands", url: "https://upload.wikimedia.org/wikipedia/commons/3/3b/Wands06.jpg" },
+            { name: "Seven of Wands", url: "https://upload.wikimedia.org/wikipedia/commons/e/e4/Wands07.jpg" },
+            { name: "Eight of Wands", url: "https://upload.wikimedia.org/wikipedia/commons/6/6b/Wands08.jpg" },
+            { name: "Nine of Wands", url: "https://upload.wikimedia.org/wikipedia/commons/4/4d/Tarot_Nine_of_Wands.jpg" },
+            { name: "Ten of Wands", url: "https://upload.wikimedia.org/wikipedia/commons/0/0b/Wands10.jpg" },
+            { name: "Page of Wands", url: "https://upload.wikimedia.org/wikipedia/commons/6/6a/Wands11.jpg" },
+            { name: "Knight of Wands", url: "https://upload.wikimedia.org/wikipedia/commons/1/16/Wands12.jpg" },
+            { name: "Queen of Wands", url: "https://upload.wikimedia.org/wikipedia/commons/0/0d/Wands13.jpg" },
+            { name: "King of Wands", url: "https://upload.wikimedia.org/wikipedia/commons/c/ce/Wands14.jpg" },
+            /* CUPS */
+            { name: "Ace of Cups", url: "https://upload.wikimedia.org/wikipedia/commons/3/36/Cups01.jpg" },
+            { name: "Two of Cups", url: "https://upload.wikimedia.org/wikipedia/commons/f/f8/Cups02.jpg" },
+            { name: "Three of Cups", url: "https://upload.wikimedia.org/wikipedia/commons/7/7a/Cups03.jpg" },
+            { name: "Four of Cups", url: "https://upload.wikimedia.org/wikipedia/commons/3/35/Cups04.jpg" },
+            { name: "Five of Cups", url: "https://upload.wikimedia.org/wikipedia/commons/d/d7/Cups05.jpg" },
+            { name: "Six of Cups", url: "https://upload.wikimedia.org/wikipedia/commons/1/17/Cups06.jpg" },
+            { name: "Seven of Cups", url: "https://upload.wikimedia.org/wikipedia/commons/a/ae/Cups07.jpg" },
+            { name: "Eight of Cups", url: "https://upload.wikimedia.org/wikipedia/commons/6/60/Cups08.jpg" },
+            { name: "Nine of Cups", url: "https://upload.wikimedia.org/wikipedia/commons/2/24/Cups09.jpg" },
+            { name: "Ten of Cups", url: "https://upload.wikimedia.org/wikipedia/commons/8/84/Cups10.jpg" },
+            { name: "Page of Cups", url: "https://upload.wikimedia.org/wikipedia/commons/a/ad/Cups11.jpg" },
+            { name: "Knight of Cups", url: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Cups12.jpg" },
+            { name: "Queen of Cups", url: "https://upload.wikimedia.org/wikipedia/commons/6/62/Cups13.jpg" },
+            { name: "King of Cups", url: "https://upload.wikimedia.org/wikipedia/commons/0/04/Cups14.jpg" },
+            /* SWORDS */
+            { name: "Ace of Swords", url: "https://upload.wikimedia.org/wikipedia/commons/1/1a/Swords01.jpg" },
+            { name: "Two of Swords", url: "https://upload.wikimedia.org/wikipedia/commons/9/9e/Swords02.jpg" },
+            { name: "Three of Swords", url: "https://upload.wikimedia.org/wikipedia/commons/0/02/Swords03.jpg" },
+            { name: "Four of Swords", url: "https://upload.wikimedia.org/wikipedia/commons/b/bf/Swords04.jpg" },
+            { name: "Five of Swords", url: "https://upload.wikimedia.org/wikipedia/commons/2/23/Swords05.jpg" },
+            { name: "Six of Swords", url: "https://upload.wikimedia.org/wikipedia/commons/2/29/Swords06.jpg" },
+            { name: "Seven of Swords", url: "https://upload.wikimedia.org/wikipedia/commons/3/34/Swords07.jpg" },
+            { name: "Eight of Swords", url: "https://upload.wikimedia.org/wikipedia/commons/a/a7/Swords08.jpg" },
+            { name: "Nine of Swords", url: "https://upload.wikimedia.org/wikipedia/commons/2/2f/Swords09.jpg" },
+            { name: "Ten of Swords", url: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Swords10.jpg" },
+            { name: "Page of Swords", url: "https://upload.wikimedia.org/wikipedia/commons/4/4c/Swords11.jpg" },
+            { name: "Knight of Swords", url: "https://upload.wikimedia.org/wikipedia/commons/b/b0/Swords12.jpg" },
+            { name: "Queen of Swords", url: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Swords13.jpg" },
+            { name: "King of Swords", url: "https://upload.wikimedia.org/wikipedia/commons/3/33/Swords14.jpg" },
+            /* PENTACLES */
+            { name: "Ace of Pentacles", url: "https://upload.wikimedia.org/wikipedia/commons/f/fd/Pents01.jpg" },
+            { name: "Two of Pentacles", url: "https://upload.wikimedia.org/wikipedia/commons/9/9f/Pents02.jpg" },
+            { name: "Three of Pentacles", url: "https://upload.wikimedia.org/wikipedia/commons/4/42/Pents03.jpg" },
+            { name: "Four of Pentacles", url: "https://upload.wikimedia.org/wikipedia/commons/3/35/Pents04.jpg" },
+            { name: "Five of Pentacles", url: "https://upload.wikimedia.org/wikipedia/commons/9/96/Pents05.jpg" },
+            { name: "Six of Pentacles", url: "https://upload.wikimedia.org/wikipedia/commons/a/a6/Pents06.jpg" },
+            { name: "Seven of Pentacles", url: "https://upload.wikimedia.org/wikipedia/commons/6/6a/Pents07.jpg" },
+            { name: "Eight of Pentacles", url: "https://upload.wikimedia.org/wikipedia/commons/4/49/Pents08.jpg" },
+            { name: "Nine of Pentacles", url: "https://upload.wikimedia.org/wikipedia/commons/f/f0/Pents09.jpg" },
+            { name: "Ten of Pentacles", url: "https://upload.wikimedia.org/wikipedia/commons/4/42/Pents10.jpg" },
+            { name: "Page of Pentacles", url: "https://upload.wikimedia.org/wikipedia/commons/e/ec/Pents11.jpg" },
+            { name: "Knight of Pentacles", url: "https://upload.wikimedia.org/wikipedia/commons/d/d5/Pents12.jpg" },
+            { name: "Queen of Pentacles", url: "https://upload.wikimedia.org/wikipedia/commons/8/88/Pents13.jpg" },
+            { name: "King of Pentacles", url: "https://upload.wikimedia.org/wikipedia/commons/1/1c/Pents14.jpg" }
+        ];
+
+        // --- PRELOAD AND CACHING LOGIC ---
+        async function preloadDeck() {
+            let loadedCount = 0;
+            const progressText = document.getElementById('progress-text');
+            const progressBar = document.getElementById('progress-bar');
+            
+            try {
+                // Ensure Cache Storage is available
+                if ('caches' in window) {
+                    const cache = await caches.open('tarot-deck');
+                    
+                    // Concurrency limit helper if needed, but modern browsers handle concurrent fetch well.
+                    // Doing them directly.
+                    const promises = TAROT_DATA.map(async (card) => {
+                        try {
+                            const match = await cache.match(card.url);
+                            if (!match) {
+                                const response = await fetch(card.url, { mode: 'cors' });
+                                if (response.ok) {
+                                    await cache.put(card.url, response);
+                                }
+                            }
+                        } catch(e) { 
+                            console.warn("Failed caching:", card.url, e);
+                        }
+                        loadedCount++;
+                        progressText.innerText = loadedCount;
+                        progressBar.style.width = `${(loadedCount / TAROT_DATA.length) * 100}%`;
+                    });
+
+                    await Promise.all(promises);
+                } else {
+                    // Fallback for extremely old browsers without Cache Storage
+                    console.warn("Cache API not supported");
+                    progressBar.style.width = "100%";
+                }
+            } catch (err) {
+                 console.error("General Preload Error", err);
+            }
+
+            // Transition to main
+            setTimeout(() => {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('main-app').classList.add('active');
+                setupVisualDeck();
+            }, 600);
+        }
+
+        // --- VIEW & ANIMATION LOGIC ---
+        const SPREADS = {
+            "daily": { count: 1, labels: ["Card of the Day"] },
+            "ppf": { count: 3, labels: ["Past", "Present", "Future"] },
+            "simple": { count: 5, labels: ["", "", "", "", ""] }
+        };
+
+        function onSpreadChange() {
+            const spreadId = document.getElementById('spread-selector').value;
+            const count = SPREADS[spreadId].count;
+            document.getElementById('draw-btn').innerText = `Draw ${count} Card${count > 1 ? 's' : ''}`;
+        }
+
+        function getCardMeaning(name, isReversed) {
+            const majors = {
+                "The Fool": "New beginnings, optimism, trust in life.",
+                "The Magician": "Action, the power to manifest.",
+                "The High Priestess": "Inaction, going within, the subconscious.",
+                "The Empress": "Abundance, nurturing, life in bloom.",
+                "The Emperor": "Structure, stability, rules and power.",
+                "The Hierophant": "Institutions, tradition, society norms.",
+                "The Lovers": "Sexuality, passion, choice, uniting.",
+                "The Chariot": "Movement, progress, integration.",
+                "Strength": "Courage, subtle power, inner strength.",
+                "The Hermit": "Meditation, solitary reflection.",
+                "Wheel of Fortune": "Cycles, change, ups and downs.",
+                "Justice": "Fairness, equality, balance, truth.",
+                "The Hanged Man": "Surrender, new perspective, enlightenment.",
+                "Death": "End of cycle, beginnings, metamorphosis.",
+                "Temperance": "Balance, moderation, being sensible.",
+                "The Devil": "Destructive patterns, addiction, materialism.",
+                "The Tower": "Collapse of stability, release, sudden insight.",
+                "The Star": "Hope, mental clarity, inspiration.",
+                "The Moon": "Illusion, fear, anxiety, the subconscious.",
+                "The Sun": "Vitality, enlightenment, greatness.",
+                "Judgement": "Forgiveness, absolution, rebirth.",
+                "The World": "Wholeness, completion, achieving success."
+            };
+
+            let baseMeaning = "A mysterious revelation awaits.";
+            const ranks = { "Ace": "New potential", "Two": "Balance", "Three": "Growth", "Four": "Stability", "Five": "Conflict", "Six": "Harmony", "Seven": "Assessment", "Eight": "Movement", "Nine": "Culmination", "Ten": "Completion", "Page": "Exploration", "Knight": "Action", "Queen": "Nurturing", "King": "Control" };
+            const suits = { "Wands": "in passion and action.", "Cups": "in emotions and intuition.", "Swords": "regarding intellect and conflict.", "Pentacles": "in material career and wealth." };
+
+            let [rank, suit] = name.split(" of ");
+            if (majors[name]) {
+                baseMeaning = majors[name];
+            } else if (ranks[rank] && suits[suit]) {
+                baseMeaning = `${ranks[rank]} ${suits[suit]}`;
+            }
+
+            if (isReversed) {
+                return `Reversed: Blocked energy regarding ${baseMeaning.toLowerCase()}`;
+            }
+            return baseMeaning;
+        }
+
+        function getExpandedMeaning(name, isReversed, spreadLabel) {
+            const baseMeaning = getCardMeaning(name, false);
+
+            let paragraph = `<p><strong>Core Symbolism:</strong> ${baseMeaning}</p>`;
+            
+            if (isReversed) {
+                paragraph += `<p><strong>Reversed Context:</strong> By landing upside down, this card's energy is presently internalized, delayed, or actively blocked. It often suggests you need to reflect inwards regarding these themes before expecting outward manifestation.</p>`;
+            } else {
+                paragraph += `<p><strong>Upright Context:</strong> This card has appeared fully realized and upright. Its energy is effortlessly flowing into your situation, urging you to harness its specific characteristics.</p>`;
+            }
+
+            if (spreadLabel) {
+                paragraph += `<p><strong>As Your ${spreadLabel}:</strong> This influence firmly anchors itself in the context of the '${spreadLabel}'. Evaluate how the themes described above relate uniquely to this aspect of your life right now.</p>`;
+            }
+
+            return paragraph;
+        }
+
+        function openModal(cardData, isReversed, spreadLabel) {
+            const img = document.getElementById('modal-img');
+            img.src = cardData.url;
+            if (isReversed) {
+                img.classList.add('reversed');
+            } else {
+                img.classList.remove('reversed');
+            }
+            
+            document.getElementById('modal-title').innerText = cardData.name + (isReversed ? " (Reversed)" : "");
+            
+            let subtitle = spreadLabel || "Detailed Insight";
+            document.getElementById('modal-subtitle').innerText = subtitle;
+            
+            document.getElementById('modal-desc').innerHTML = getExpandedMeaning(cardData.name, isReversed, spreadLabel);
+            
+            document.getElementById('card-modal').classList.add('show');
+            document.body.style.overflow = "hidden"; // Prevent background scrolling
+        }
+
+        function closeModal(e) {
+            // If e is passed, only close if clicking the background overlay or close button
+            if (e && e.target !== document.getElementById('card-modal') && e.target !== document.querySelector('.modal-close')) {
+                return;
+            }
+            document.getElementById('card-modal').classList.remove('show');
+            document.body.style.overflow = "auto";
+        }
+
+        function setupVisualDeck() {
+            const deck = document.getElementById('deck');
+            deck.innerHTML = '';
+            for(let i=0; i<5; i++) {
+                const visualCard = document.createElement('div');
+                visualCard.className = 'deck-card';
+                // stack them nicely
+                visualCard.style.top = `${-i * 2}px`;
+                visualCard.style.right = `${-i * 2}px`;
+                deck.appendChild(visualCard);
+            }
+        }
+
+        let currentDraw = null;
+
+        async function performDraw() {
+            const btn = document.getElementById('draw-btn');
+            btn.disabled = true;
+            btn.innerText = "Attuning...";
+            if(document.getElementById('save-btn')) document.getElementById('save-btn').style.display = 'none';
+            
+            const deck = document.getElementById('deck');
+            deck.classList.add('shuffling');
+            
+            const spreadId = document.getElementById('spread-selector').value;
+            const spread = SPREADS[spreadId];
+            
+            // Wait for shuffle animation
+            await new Promise(res => setTimeout(res, 1200));
+            deck.classList.remove('shuffling');
+
+            // Logical shuffle
+            let deckArray = [...TAROT_DATA];
+            for (let i = deckArray.length - 1; i > 0; i--) {
+                let j = Math.floor(Math.random() * (i + 1));
+                [deckArray[i], deckArray[j]] = [deckArray[j], deckArray[i]];
+            }
+            
+            const drawn = deckArray.slice(0, spread.count);
+            const container = document.getElementById('cards-container');
+            container.innerHTML = '';
+            
+            let drawnContext = [];
+
+            // Draw sequence
+            for (let i=0; i < drawn.length; i++) {
+                const cardData = drawn[i];
+                const isReversed = Math.random() < 0.25; // 25% chance of being inverted
+                
+                drawnContext.push({
+                    position: spread.labels[i] || `Card ${i+1}`,
+                    name: cardData.name,
+                    isReversed: isReversed
+                });
+                
+                const itemContainer = document.createElement('div');
+                itemContainer.className = 'card-item-container';
+
+                const labelDiv = document.createElement('div');
+                if (spread.labels[i]) {
+                    labelDiv.className = 'spread-label';
+                    labelDiv.innerText = spread.labels[i];
+                    itemContainer.appendChild(labelDiv);
+                }
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'card-wrapper';
+                
+                const inner = document.createElement('div');
+                inner.className = 'card-inner';
+                
+                const meaningDiv = document.createElement('div');
+                meaningDiv.className = 'meaning-text';
+                meaningDiv.innerText = getCardMeaning(cardData.name, isReversed);
+                
+                // Add click to flip capability
+                inner.onclick = () => {
+                    if (inner.classList.contains('flipped')) {
+                        openModal(cardData, isReversed, spread.labels[i]);
+                    } else {
+                        inner.classList.add('flipped');
+                        meaningDiv.classList.add('visible');
+                        if (spread.labels[i]) labelDiv.classList.add('visible');
+                    }
+                };
+                
+                const front = document.createElement('div');
+                front.className = 'card-front';
+                
+                const back = document.createElement('div');
+                back.className = 'card-back';
+                
+                const img = document.createElement('img');
+                img.src = cardData.url;
+                img.loading = 'lazy';
+                if (isReversed) img.classList.add('reversed');
+                
+                const title = document.createElement('h3');
+                title.innerText = cardData.name + (isReversed ? " (Rev)" : "");
+                
+                back.appendChild(img);
+                back.appendChild(title);
+                inner.appendChild(front);
+                inner.appendChild(back);
+                wrapper.appendChild(inner);
+                
+                itemContainer.appendChild(wrapper);
+                itemContainer.appendChild(meaningDiv);
+                container.appendChild(itemContainer);
+                
+                // Fly-in effect from deck stagger
+                setTimeout(() => {
+                    wrapper.classList.add('drawn');
+                }, 100 + (i * 250));
+                
+                // Automatically flip them sequentially after they land
+                setTimeout(() => {
+                    inner.classList.add('flipped');
+                    meaningDiv.classList.add('visible');
+                    if(spread.labels[i]) labelDiv.classList.add('visible');
+                }, 1500 + (i * 300));
+            }
+            
+            // Re-enable button finally
+            setTimeout(() => {
+                btn.disabled = false;
+                onSpreadChange(); // Reset text to correct card count
+                
+                const selectEl = document.getElementById('spread-selector');
+                currentDraw = {
+                    date: new Date().toISOString(),
+                    spreadName: spreadId,
+                    spreadDisplay: selectEl.options[selectEl.selectedIndex].text,
+                    cards: drawnContext
+                };
+                if(document.getElementById('save-btn')) document.getElementById('save-btn').style.display = 'block';
+
+            }, 1800 + (drawn.length * 300));
+        }
+
+        // --- JOURNAL LOGIC ---
+        function saveReading() {
+            if (!currentDraw) return;
+            const notes = prompt("Add a brief reflection or query core for this reading (optional):", "");
+            if (notes !== null) currentDraw.notes = notes;
+
+            let journal = JSON.parse(localStorage.getItem('tarot-journal') || "[]");
+            journal.unshift(currentDraw); // Add to beginning (latest first)
+            localStorage.setItem('tarot-journal', JSON.stringify(journal));
+            
+            alert("Reading perfectly preserved in your offline journal.");
+            document.getElementById('save-btn').style.display = 'none'; // Only save once per draw
+        }
+
+        function viewJournal() {
+            document.getElementById('main-app').style.display = 'none';
+            document.getElementById('explorer-screen').classList.remove('active');
+            document.getElementById('journal-screen').classList.add('active');
+            renderJournal();
+        }
+
+        function viewMain() {
+            document.getElementById('journal-screen').classList.remove('active');
+            document.getElementById('explorer-screen').classList.remove('active');
+            document.getElementById('main-app').style.display = 'flex';
+        }
+
+        function viewExplorer() {
+            document.getElementById('main-app').style.display = 'none';
+            document.getElementById('journal-screen').classList.remove('active');
+            document.getElementById('explorer-screen').classList.add('active');
+            renderExplorer(""); // Initial render with no filter
+        }
+
+        function renderJournal() {
+            const list = document.getElementById('journal-list');
+            list.innerHTML = "";
+            let journal = JSON.parse(localStorage.getItem('tarot-journal') || "[]");
+
+            // --- ANALYTICS DASHBOARD CALCULATION ---
+            if (document.getElementById('stat-total')) {
+                document.getElementById('stat-total').innerText = journal.length;
+                
+                let up = 0, rev = 0;
+                let cardsList = [];
+                let suits = { "Major Arcana": 0, "Wands": 0, "Cups": 0, "Swords": 0, "Pentacles": 0 };
+
+                journal.forEach(entry => {
+                    entry.cards.forEach(c => {
+                        if (c.isReversed) rev++; else up++;
+                        cardsList.push(c.name);
+                        
+                        if (c.name.includes("Wands")) suits["Wands"]++;
+                        else if (c.name.includes("Cups")) suits["Cups"]++;
+                        else if (c.name.includes("Swords")) suits["Swords"]++;
+                        else if (c.name.includes("Pentacles")) suits["Pentacles"]++;
+                        else suits["Major Arcana"]++;
+                    });
+                });
+                
+                let ratio = up + rev > 0 ? Math.round((up / (up + rev)) * 100) : 0;
+                document.getElementById('stat-ratio').innerText = (up + rev > 0) ? `${ratio}% Up` : "--";
+                
+                let domSuit = "--";
+                let maxSuitVal = 0;
+                for (let k in suits) { if (suits[k] > maxSuitVal) { maxSuitVal = suits[k]; domSuit = k; } }
+                document.getElementById('stat-suit').innerText = maxSuitVal > 0 ? domSuit : "--";
+                
+                let frequentCard = "--";
+                if (cardsList.length > 0) {
+                    let counts = {};
+                    let maxCount = 0;
+                    cardsList.forEach(c => {
+                        counts[c] = (counts[c] || 0) + 1;
+                        if (counts[c] > maxCount) { maxCount = counts[c]; frequentCard = c; }
+                    });
+                }
+                document.getElementById('stat-freq').innerText = frequentCard;
+            }
+
+            if(journal.length === 0) {
+                list.innerHTML = "<p style='text-align:center; opacity:0.6; margin-top:50px;'>Your journal is presently empty. Draw some cards and save a reading.</p>";
+                return;
+            }
+
+            journal.forEach((entry, index) => {
+                const d = new Date(entry.date);
+                const dateString = d.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' }) + " at " + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+                const item = document.createElement('div');
+                item.className = 'journal-entry';
+                
+                let cardsHtml = entry.cards.map((c) => {
+                    return `<div class="journal-card-row">
+                        <div class="journal-card-pos">${c.position}</div>
+                        <div class="journal-card-name">${c.name} ${c.isReversed ? '<span style="color:#ffda75; font-size:12px; margin-left:5px;">(Reversed)</span>' : ''}</div>
+                    </div>`;
+                }).join('');
+
+                let notesHtml = entry.notes ? `<div class="journal-notes">"${entry.notes}"</div>` : '';
+
+                item.innerHTML = `
+                    <div class="journal-entry-header">
+                        <div>
+                            <div class="journal-spread">${entry.spreadDisplay}</div>
+                            <div class="journal-date">${dateString}</div>
+                        </div>
+                        <button class="del-btn" onclick="deleteJournalEntry(${index})">&times;</button>
+                    </div>
+                    <div class="journal-cards">${cardsHtml}</div>
+                    ${notesHtml}
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function deleteJournalEntry(index) {
+            if(confirm("Are you sure you want to permanently tear out this reading from your journal?")) {
+                let journal = JSON.parse(localStorage.getItem('tarot-journal') || "[]");
+                journal.splice(index, 1);
+                localStorage.setItem('tarot-journal', JSON.stringify(journal));
+                renderJournal();
+            }
+        }
+
+        // --- EXPLORER LOGIC ---
+        function renderExplorer(filter = "") {
+            const grid = document.getElementById('explorer-grid');
+            grid.innerHTML = "";
+            const lowerFilter = filter.toLowerCase();
+            
+            // Loop natively sorted TAROT_DATA
+            TAROT_DATA.forEach(card => {
+                if (lowerFilter && !card.name.toLowerCase().includes(lowerFilter)) return;
+                
+                const box = document.createElement('div');
+                box.className = 'explorer-card';
+                box.onclick = () => openModal(card, false, 'Codex Reference');
+                
+                const img = document.createElement('img');
+                img.src = card.url;
+                img.loading = 'lazy';
+                
+                const title = document.createElement('h4');
+                title.innerText = card.name;
+                
+                box.appendChild(img);
+                box.appendChild(title);
+                grid.appendChild(box);
+            });
+        }
+
+        // Initialize when ready
+        document.addEventListener('DOMContentLoaded', () => {
+             preloadDeck();
+        });
+
+    </script>
+
+    <!-- DETAIL MODAL -->
+    <div id="card-modal" class="modal" onclick="closeModal(event)">
+        <div class="modal-content">
+            <div class="modal-close" onclick="closeModal(event)">&times;</div>
+            <div class="modal-image">
+                <img id="modal-img" src="" alt="Card Art">
+            </div>
+            <div class="modal-body">
+                <h2 class="modal-title" id="modal-title">Card Name</h2>
+                <div class="modal-subtitle" id="modal-subtitle">Spread Position</div>
+                <div class="modal-desc" id="modal-desc">
+                    Meaning block goes here.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JOURNAL SCREEN -->
+    <div id="journal-screen" class="screen">
+        <div class="journal-header">
+            <h1>📖 Reading Journal</h1>
+            <div class="flex-row">
+                <button class="btn-secondary" style="margin-top:0;" onclick="viewMain()">🔮 Back to Deck</button>
+            </div>
+        </div>
+
+        <div class="analytics-dashboard">
+            <div class="metric-box">
+                <div class="metric-val" id="stat-total">0</div>
+                <div class="metric-label">Total Readings</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-val" id="stat-ratio">--</div>
+                <div class="metric-label">Positive Alignment</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-val" id="stat-suit">--</div>
+                <div class="metric-label">Dominant Essence</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-val" id="stat-freq" style="font-size:1.1rem; min-height:1.6rem;">--</div>
+                <div class="metric-label">Stalker Card</div>
+            </div>
+        </div>
+
+        <div class="journal-list" id="journal-list">
+            <!-- Populated via JS -->
+        </div>
+    </div>
+
+    <!-- EXPLORER SCREEN -->
+    <div id="explorer-screen" class="screen">
+        <div class="explorer-header">
+            <h1>📚 Tarot Codex</h1>
+            <div class="flex-row">
+                <button class="btn-secondary" style="margin-top:0;" onclick="viewMain()">🔮 Back to Deck</button>
+            </div>
+        </div>
+        <div class="explorer-search">
+            <input type="text" id="explorer-input" placeholder="Search the arcane by card name..." oninput="renderExplorer(this.value)">
+        </div>
+        <div class="explorer-grid" id="explorer-grid">
+            <!-- JS inserts cards -->
+        </div>
+    </div>
+</body>
+</html>
